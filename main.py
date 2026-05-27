@@ -3,244 +3,247 @@ import time
 import random
 
 # 1. 페이지 설정
-st.set_page_config(page_title="당곡고 포켓몬 배틀", page_icon="⚔️", layout="wide")
+st.set_page_config(page_title="당곡고 포켓몬 도감 & 배틀", page_icon="🌌", layout="wide")
 
-# 2. 게임 상태(Session State) 초기화 세팅 ★★★ (매우 중요!)
-# 스트림릿이 체력과 배틀 상황을 까먹지 않도록 기억창고에 저장하는 과정입니다.
-if 'game_mode' not in st.session_state:
-    st.session_state.game_mode = 'select' # 'select'(선택창) 또는 'battle'(배틀창)
+# 2. 게임 상태(Session State) 초기화 세팅
+# 도감에서 뽑은 포켓몬과 배틀 상태를 기억하기 위한 저장소입니다.
+if 'my_mbti' not in st.session_state:
+    st.session_state.my_mbti = None
+if 'dance_class' not in st.session_state:
+    st.session_state.dance_class = ""
+if 'dance_name' not in st.session_state:
+    st.session_state.dance_name = ""
+if 'battle_active' not in st.session_state:
+    st.session_state.battle_active = False
 if 'battle_log' not in st.session_state:
     st.session_state.battle_log = []
 if 'my_hp' not in st.session_state:
-    st.session_state.my_hp = 100
+    st.session_state.my_hp = 0
 if 'opp_hp' not in st.session_state:
-    st.session_state.opp_hp = 100
+    st.session_state.opp_hp = 0
 
-# 3. 우주 테마 & 애니메이션 CSS
+# 3. 우주 테마 & 애니메이션 & 글래스모피즘 CSS
 st.markdown("""
 <style>
+    /* 우주 배경 */
     .stApp {
         background: linear-gradient(270deg, #11052C, #3D087B, #270082, #000000);
         background-size: 800% 800%;
         animation: cosmicBg 15s ease infinite;
         color: white;
     }
-    @keyframes cosmicBg {
-        0% {background-position: 0% 50%;}
-        50% {background-position: 100% 50%;}
-        100% {background-position: 0% 50%;}
-    }
-    .neon-text {
-        color: #fff;
-        text-shadow: 0 0 10px #fff, 0 0 20px #0fa, 0 0 40px #0fa;
-        font-size: 3rem;
-        font-weight: 900;
-        text-align: center;
-        margin-bottom: 5px;
-    }
+    @keyframes cosmicBg { 0% {background-position: 0% 50%;} 50% {background-position: 100% 50%;} 100% {background-position: 0% 50%;} }
+
+    /* 텍스트 스타일 */
+    .neon-text { color: #fff; text-shadow: 0 0 10px #fff, 0 0 20px #0fa, 0 0 40px #0fa; font-size: 3.5rem; font-weight: 900; text-align: center; margin-bottom: 5px; }
+    .sub-text { color: #0fa; font-size: 1.2rem; text-align: center; margin-bottom: 40px; font-weight: bold; }
+
+    /* 도감 카드 (홀로그램 효과) */
     .holo-card {
         background: linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0));
-        backdrop-filter: blur(10px);
-        -webkit-backdrop-filter: blur(10px);
-        border: 2px solid rgba(0, 255, 255, 0.5);
-        border-radius: 20px;
-        padding: 30px;
-        box-shadow: 0 0 20px rgba(0, 255, 255, 0.4);
-        text-align: center;
+        backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+        border: 2px solid rgba(0, 255, 255, 0.5); border-radius: 20px; padding: 40px;
+        box-shadow: 0 0 20px rgba(0, 255, 255, 0.4); text-align: center; margin-top: 20px;
     }
-    .poke-img {
-        display: block;
-        margin: 0 auto;
-        width: 100%;
-        max-width: 250px;
-        filter: drop-shadow(0px 0px 20px rgba(255, 255, 255, 0.6));
-    }
-    .vs-text {
-        font-size: 5rem;
-        font-weight: 900;
-        color: #ff004c;
-        text-shadow: 0 0 20px #ff004c, 0 0 40px #ff0000;
-        text-align: center;
-        margin-top: 50%;
-    }
-    /* 춤추는 애니메이션 */
-    @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-20px); } }
-    .dance-bounce { animation: bounce 0.5s infinite; }
     
-    @keyframes swing { 0%, 100% { transform: rotate(0deg); } 50% { transform: rotate(15deg); } }
-    .dance-swing { animation: swing 0.6s infinite; }
+    /* 배틀용 미니 카드 */
+    .battle-card {
+        background: rgba(0, 0, 0, 0.5); border: 2px solid #0fa; border-radius: 15px; padding: 20px; text-align: center;
+    }
+
+    .poke-img { display: block; margin: 0 auto; width: 100%; max-width: 300px; filter: drop-shadow(0px 0px 20px rgba(255, 255, 255, 0.6)); }
+    .battle-img { max-width: 200px; } /* 배틀창에서는 이미지를 조금 작게 */
     
+    .vs-text { font-size: 4rem; font-weight: 900; color: #ff004c; text-shadow: 0 0 20px #ff004c; text-align: center; margin-top: 40%; }
+
+    /* 5가지 무작위 댄스 애니메이션 */
+    @keyframes bounce { 0%, 100% { transform: translateY(0) scale(1); } 50% { transform: translateY(-25px) scale(1.05); } }
+    .dance-bounce { animation: bounce 0.5s ease-in-out infinite; }
+    @keyframes shake-spin { 0% { transform: rotate(0deg); } 25% { transform: rotate(15deg); } 50% { transform: rotate(0deg); } 75% { transform: rotate(-15deg); } 100% { transform: rotate(360deg); } }
+    .dance-shake-spin { animation: shake-spin 1s linear infinite; }
+    @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.2) rotate(5deg); } }
+    .dance-pulse { animation: pulse 0.6s ease-in-out infinite; }
+    @keyframes swing { 0%, 100% { transform: rotate(0deg); transform-origin: top center; } 33% { transform: rotate(15deg); } 66% { transform: rotate(-15deg); } }
+    .dance-swing { animation: swing 0.8s ease-in-out infinite; }
+    @keyframes jelly { 0%, 100% { transform: scale(1, 1); } 25% { transform: scale(1.15, 0.85); } 50% { transform: scale(0.85, 1.15); } 75% { transform: scale(1.05, 0.95); } }
+    .dance-jelly { animation: jelly 0.7s infinite; }
+
+    /* 전투 로그 박스 */
     .battle-log-box {
-        background: rgba(0,0,0,0.7);
-        border-left: 5px solid #0fa;
-        padding: 15px;
-        border-radius: 10px;
-        font-family: 'Courier New', Courier, monospace;
-        height: 200px;
-        overflow-y: auto;
-        margin-top: 20px;
+        background: rgba(0,0,0,0.7); border-left: 5px solid #0fa; padding: 15px; border-radius: 10px;
+        font-family: 'Courier New', Courier, monospace; height: 180px; overflow-y: auto; margin-top: 10px;
+    }
+    
+    /* 도감 설명 박스 */
+    .story-text-dark {
+        font-size: 1.1rem; line-height: 1.8; color: #eeeeee; text-align: left; background: rgba(0, 0, 0, 0.6);
+        padding: 20px; border-radius: 15px; margin-top: 20px; border-left: 5px solid #0fa;
     }
 </style>
 """, unsafe_allow_html=True)
 
-# 4. 방대한 포켓몬 데이터
+# 4. 방대한 포켓몬 데이터 (체력, 공격력, 매력 통합)
 pokemon_data = {
-    "ISTJ": {"name": "이상해씨", "img": "1", "hp": 150, "atk": 40},
-    "ISFJ": {"name": "럭키", "img": "113", "hp": 200, "atk": 25},
-    "INFJ": {"name": "라프라스", "img": "131", "hp": 160, "atk": 45},
-    "INTJ": {"name": "뮤츠", "img": "150", "hp": 140, "atk": 65},
-    "ISTP": {"name": "잠만보", "img": "143", "hp": 220, "atk": 50},
-    "ISFP": {"name": "이브이", "img": "133", "hp": 130, "atk": 35},
-    "INFP": {"name": "뮤", "img": "151", "hp": 140, "atk": 55},
-    "INTP": {"name": "폴리곤", "img": "137", "hp": 135, "atk": 60},
-    "ESTP": {"name": "리자몽", "img": "6", "hp": 145, "atk": 70},
-    "ESFP": {"name": "푸린", "img": "39", "hp": 170, "atk": 30},
-    "ENFP": {"name": "피카츄", "img": "25", "hp": 120, "atk": 55},
-    "ENTP": {"name": "팬텀", "img": "94", "hp": 125, "atk": 65},
-    "ESTJ": {"name": "거북왕", "img": "9", "hp": 165, "atk": 50},
-    "ESFJ": {"name": "토게피", "img": "175", "hp": 140, "atk": 20},
-    "ENFJ": {"name": "망나뇽", "img": "149", "hp": 155, "atk": 65},
-    "ENTJ": {"name": "갸라도스", "img": "130", "hp": 150, "atk": 75}
+    "ISTJ": {"name": "이상해씨", "title": "원칙주의자 모범생", "img": "1", "hp": 150, "atk": 40, "charm": 60, "desc": "한 번 정한 목표는 흔들림 없이 밀고 나가는 듬직한 이상해씨입니다. 당곡고에서 당신은 항상 필기가 완벽하고, 수행평가 기한을 절대 어기지 않는 철저한 모범생 스타일이에요!"},
+    "ISFJ": {"name": "럭키", "title": "다정한 수호천사", "img": "113", "hp": 200, "atk": 25, "charm": 95, "desc": "친구들이 힘들 때 가장 먼저 다가가 조용히 위로를 건네는 럭키입니다. 반에서 당신이 없으면 교실 분위기가 삭막해질 정도로 당신의 존재감은 큽니다."},
+    "INFJ": {"name": "라프라스", "title": "심연의 통찰가", "img": "131", "hp": 160, "atk": 45, "charm": 90, "desc": "조용하지만 날카로운 통찰력을 지닌 라프라스입니다. 겉보기엔 온화하지만 속으로는 수많은 생각과 당곡고의 숨은 진리를 꿰뚫어 보고 있습니다."},
+    "INTJ": {"name": "뮤츠", "title": "냉철한 전략가", "img": "150", "hp": 140, "atk": 65, "charm": 50, "desc": "학교라는 시스템을 완벽하게 분석하고 자신만의 학습 효율을 극대화하는 뮤츠입니다. 머릿속에는 완벽한 마스터플랜이 그려져 있습니다."},
+    "ISTP": {"name": "잠만보", "title": "가성비의 신", "img": "143", "hp": 220, "atk": 50, "charm": 55, "desc": "쉬는 시간엔 늘 엎드려 자고 있지만, 막상 시험을 보면 점수가 엄청난 기적의 잠만보입니다! 최소한의 노력으로 최대의 효율을 뽑아내는 실용주의자죠."},
+    "ISFP": {"name": "이브이", "title": "자유로운 영혼", "img": "133", "hp": 130, "atk": 35, "charm": 95, "desc": "어떤 무리에든 자연스럽게 녹아드는 유연한 매력의 이브이입니다. 남에게 강요하는 것을 싫어하고 평화로우며 감성적인 하루하루를 살아갑니다."},
+    "INFP": {"name": "뮤", "title": "몽상가 예술가", "img": "151", "hp": 140, "atk": 55, "charm": 90, "desc": "창가 자리에 앉아 뭉게구름을 보며 상상의 나래를 펼치는 뮤입니다. 마음속에 깊고 넓은 감수성의 우주를 품고 있는 순수한 영혼입니다."},
+    "INTP": {"name": "폴리곤", "title": "논리적 팩트폭격기", "img": "137", "hp": 135, "atk": 60, "charm": 40, "desc": "정보 교과 시간을 가장 좋아하는 지적 호기심 대마왕 폴리곤입니다! 흥미 있는 분야는 끝까지 파고드는 학구파지만, 관심 없는 과목은 과감히 놓아버립니다."},
+    "ESTP": {"name": "리자몽", "title": "위풍당당 행동대장", "img": "6", "hp": 145, "atk": 70, "charm": 85, "desc": "체육대회 때 가장 빛나는 당신! 불꽃같은 에너지를 뿜어내는 리자몽입니다. 복잡하게 생각하기보다 일단 부딪혀보는 실전파 학생입니다."},
+    "ESFP": {"name": "푸린", "title": "무대 위의 인싸", "img": "39", "hp": 170, "atk": 30, "charm": 100, "desc": "당곡고 축제와 장기자랑의 주인공은 바로 나! 노래와 춤을 사랑하는 푸린입니다. 소중한 분위기 메이커입니다."},
+    "ENFP": {"name": "피카츄", "title": "인간 비타민", "img": "25", "hp": 120, "atk": 55, "charm": 100, "desc": "쉬는 시간마다 교실을 누비며 친구들에게 웃음을 주는 에너자이저 피카츄입니다! 특유의 번뜩이는 아이디어와 친화력을 자랑합니다."},
+    "ENTP": {"name": "팬텀", "title": "재기발랄 악동", "img": "94", "hp": 125, "atk": 65, "charm": 80, "desc": "선생님의 농담을 가장 재치 있게 받아치는 반의 공식 장난꾸러기 팬텀입니다! 틀에 갇힌 것을 싫어하고 늘 새롭고 기발한 아이디어를 쏟아냅니다."},
+    "ESTJ": {"name": "거북왕", "title": "든든한 학생회장", "img": "9", "hp": 165, "atk": 50, "charm": 75, "desc": "학급의 규칙과 질서를 수호하는 듬직한 거북왕입니다. 카리스마 있게 주도하고 진두지휘하는 전형적인 리더상입니다."},
+    "ESFJ": {"name": "토게피", "title": "친화력 끝판왕", "img": "175", "hp": 140, "atk": 20, "charm": 100, "desc": "복도를 걸어가면 반의반은 다 아는 얼굴! 엄청난 사교성을 자랑합니다. 친구들의 기분 변화를 귀신같이 눈치채고 챙겨주는 평화의 상징입니다."},
+    "ENFJ": {"name": "망나뇽", "title": "따뜻한 카리스마", "img": "149", "hp": 155, "atk": 65, "charm": 95, "desc": "부드럽지만 강인한 매력으로 사람들을 이끄는 망나뇽입니다. 당곡고 학생들의 멘토를 자처하며 올바른 길로 갈 수 있도록 응원합니다."},
+    "ENTJ": {"name": "갸라도스", "title": "거침없는 불도저", "img": "130", "hp": 150, "atk": 75, "charm": 70, "desc": "목표를 정하면 거칠 것 없이 돌진하는 야망 가득한 갸라도스입니다. 추진력이 엄청나서 어떤 프로젝트든 성공시켜버리는 압도적 실력자입니다."}
 }
+
+dance_list = [
+    ("dance-bounce", "🎶 폴짝폴짝 바운스 🎶"),
+    ("dance-shake-spin", "💫 빙글빙글 쉐이크 스핀 💫"),
+    ("dance-pulse", "💗 두근두근 펄스 💗"),
+    ("dance-swing", "👋 시계추처럼 스윙스윙 👋"),
+    ("dance-jelly", "🍮 젤리처럼 꿀렁꿀렁 🍮")
+]
 
 mbti_types = sorted(list(pokemon_data.keys()))
 
-st.markdown('<div class="neon-text">⚔️ 당곡고 MBTI 배틀 아레나 ⚔️</div>', unsafe_allow_html=True)
+# ==========================================
+# 🌠 [섹션 1] 포켓몬 도감 검색부
+# ==========================================
+st.markdown('<div class="neon-text">🌌 은하계 MBTI 포켓몬 🌌</div>', unsafe_allow_html=True)
+st.markdown('<div class="sub-text">내 포켓몬을 소환하고 스크롤을 내려 배틀을 진행하세요! 👇</div>', unsafe_allow_html=True)
 
-# ==========================================
-# 🎮 [모드 1] 포켓몬 선택 화면
-# ==========================================
-if st.session_state.game_mode == 'select':
-    st.markdown("<h3 style='text-align:center; color:#0fa;'>나와 상대방의 MBTI를 골라주세요!</h3>", unsafe_allow_html=True)
+col1, col2, col3 = st.columns([1, 2, 1])
+with col2:
+    selected_mbti = st.selectbox("당신의 MBTI를 선택하세요", mbti_types)
     
-    col_my, col_vs, col_opp = st.columns([2, 1, 2])
-    
-    with col_my:
-        st.markdown("<h2 style='text-align:center; color:#fff;'>나의 MBTI</h2>", unsafe_allow_html=True)
-        my_mbti = st.selectbox("내 MBTI", mbti_types, key="my_sel", label_visibility="collapsed")
-        my_poke = pokemon_data[my_mbti]
-        st.image(f"https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/{my_poke['img']}.png", use_column_width=True)
-        
-    with col_vs:
-        st.markdown('<div class="vs-text">VS</div>', unsafe_allow_html=True)
-        
-    with col_opp:
-        st.markdown("<h2 style='text-align:center; color:#fff;'>상대방 MBTI</h2>", unsafe_allow_html=True)
-        # 내 MBTI와 다른 것을 기본값으로 설정하기 위한 처리
-        opp_default_idx = 1 if my_mbti == mbti_types[0] else 0
-        opp_mbti = st.selectbox("상대 MBTI", mbti_types, index=opp_default_idx, key="opp_sel", label_visibility="collapsed")
-        opp_poke = pokemon_data[opp_mbti]
-        st.image(f"https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/{opp_poke['img']}.png", use_column_width=True)
+    if st.button("🚀 내 포켓몬 소환하기!", use_container_width=True):
+        st.session_state.my_mbti = selected_mbti
+        # 새로운 포켓몬을 뽑을 때 무작위 댄스 배정 & 배틀 초기화
+        st.session_state.dance_class, st.session_state.dance_name = random.choice(dance_list)
+        st.session_state.battle_active = False 
+        st.balloons()
 
-    st.write("")
-    # 배틀 시작 버튼!
-    if st.button("🔥 배틀 시작하기! 🔥", use_container_width=True):
-        # 게임 상태를 배틀 모드로 변경하고, 체력과 정보를 세팅합니다.
-        st.session_state.game_mode = 'battle'
-        st.session_state.my_mbti = my_mbti
-        st.session_state.opp_mbti = opp_mbti
-        st.session_state.my_max_hp = my_poke['hp']
-        st.session_state.opp_max_hp = opp_poke['hp']
-        st.session_state.my_hp = my_poke['hp']
-        st.session_state.opp_hp = opp_poke['hp']
-        st.session_state.battle_log = [f"📢 야생의 당곡고 {opp_mbti}({opp_poke['name']})이(가) 승부를 걸어왔다!"]
-        st.rerun() # 화면을 즉시 새로고침하여 배틀창으로 넘어감
-
-# ==========================================
-# 🎮 [모드 2] 본격적인 배틀 화면
-# ==========================================
-elif st.session_state.game_mode == 'battle':
+# 도감 결과 출력부
+if st.session_state.my_mbti:
     my_poke = pokemon_data[st.session_state.my_mbti]
-    opp_poke = pokemon_data[st.session_state.opp_mbti]
+    img_url = f"https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/{my_poke['img']}.png"
     
-    col_my, col_vs, col_opp = st.columns([2, 1, 2])
-    
-    # 🟢 내 포켓몬 UI
-    with col_my:
+    with col2:
         st.markdown('<div class="holo-card">', unsafe_allow_html=True)
-        st.markdown(f"<h2>{st.session_state.my_mbti} [{my_poke['name']}]</h2>", unsafe_allow_html=True)
-        # 내 체력바 (HP가 0 이하로 내려가지 않도록 max 처리)
-        my_current_hp = max(0, st.session_state.my_hp)
-        my_hp_ratio = my_current_hp / st.session_state.my_max_hp
-        st.progress(my_hp_ratio, text=f"HP: {my_current_hp} / {st.session_state.my_max_hp}")
+        st.markdown(f"<h3 style='color: #0fa; margin:0;'>[ {st.session_state.my_mbti} ]</h3>", unsafe_allow_html=True)
+        st.markdown(f"<h1 style='color: #fff; margin:0; text-shadow: 0 0 10px #ff00de;'>{my_poke['title']} {my_poke['name']}</h1>", unsafe_allow_html=True)
         
-        img_url = f"https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/{my_poke['img']}.png"
+        st.markdown(f'<img src="{img_url}" class="poke-img {st.session_state.dance_class}">', unsafe_allow_html=True)
+        st.markdown(f"<p style='color:#0fa; font-weight:bold;'>{st.session_state.dance_name}</p>", unsafe_allow_html=True)
         
-        # HP가 0이면 쓰러진 연출, 아니면 춤추기
-        if my_current_hp == 0:
-            st.markdown(f'<img src="{img_url}" class="poke-img" style="filter: grayscale(100%); transform: rotate(90deg);">', unsafe_allow_html=True)
-        else:
-            st.markdown(f'<img src="{img_url}" class="poke-img dance-bounce">', unsafe_allow_html=True)
+        st.progress(my_poke['hp'] / 250, text=f"💖 체력 (HP): {my_poke['hp']}")
+        st.progress(my_poke['atk'] / 100, text=f"⚔️ 공격력 (ATK): {my_poke['atk']}")
+        st.progress(my_poke['charm'] / 100, text=f"✨ 매력 (CHARM): {my_poke['charm']}")
+        
+        st.markdown(f'<div class="story-text-dark">{my_poke["desc"]}</div>', unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
 
-    # ⚡ VS 텍스트
-    with col_vs:
-        st.markdown('<div class="vs-text">VS</div>', unsafe_allow_html=True)
+    st.write("<br><br>", unsafe_allow_html=True)
+    st.markdown("---") # 화면 분리선
 
-    # 🔴 상대 포켓몬 UI
-    with col_opp:
-        st.markdown('<div class="holo-card" style="border-color: #ff004c; box-shadow: 0 0 20px rgba(255, 0, 76, 0.4);">', unsafe_allow_html=True)
-        st.markdown(f"<h2>{st.session_state.opp_mbti} [{opp_poke['name']}]</h2>", unsafe_allow_html=True)
-        
-        opp_current_hp = max(0, st.session_state.opp_hp)
-        opp_hp_ratio = opp_current_hp / st.session_state.opp_max_hp
-        st.progress(opp_hp_ratio, text=f"HP: {opp_current_hp} / {st.session_state.opp_max_hp}")
-        
-        img_url = f"https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/{opp_poke['img']}.png"
-        
-        if opp_current_hp == 0:
-            st.markdown(f'<img src="{img_url}" class="poke-img" style="filter: grayscale(100%); transform: rotate(90deg);">', unsafe_allow_html=True)
-        else:
-            st.markdown(f'<img src="{img_url}" class="poke-img dance-swing">', unsafe_allow_html=True)
-        st.markdown('</div>', unsafe_allow_html=True)
+    # ==========================================
+    # ⚔️ [섹션 2] 배틀 아레나 (스크롤 내린 후)
+    # ==========================================
+    st.markdown('<div class="neon-text" style="font-size: 2.5rem;">⚔️ 지하 배틀 아레나 ⚔️</div>', unsafe_allow_html=True)
+    st.markdown('<div class="sub-text" style="color: #ff004c;">다른 MBTI의 포켓몬과 승부를 겨뤄보세요!</div>', unsafe_allow_html=True)
 
-    # 📝 전투 로그 출력창
-    st.markdown("### 📜 전투 기록")
-    log_html = "<div class='battle-log-box'>"
-    for log in reversed(st.session_state.battle_log): # 최신 로그가 위로 오도록 뒤집음
-        log_html += f"<p>{log}</p>"
-    log_html += "</div>"
-    st.markdown(log_html, unsafe_allow_html=True)
-
-    st.write("")
+    col_set1, col_set2 = st.columns(2)
+    with col_set1:
+        st.info(f"🟢 **나의 포켓몬:** {st.session_state.my_mbti} [{my_poke['name']}] (HP: {my_poke['hp']})")
+    with col_set2:
+        # 배틀할 상대방 선택
+        opp_mbti = st.selectbox("🔴 **상대방 MBTI 선택**", mbti_types, key="opp_select")
+        
+    if st.button("🔥 이 상대와 배틀 시작! 🔥", use_container_width=True):
+        st.session_state.opp_mbti = opp_mbti
+        st.session_state.battle_active = True
+        # 체력 초기화 세팅
+        st.session_state.my_hp = my_poke['hp']
+        st.session_state.my_max_hp = my_poke['hp']
+        st.session_state.opp_hp = pokemon_data[opp_mbti]['hp']
+        st.session_state.opp_max_hp = pokemon_data[opp_mbti]['hp']
+        st.session_state.battle_log = [f"📢 야생의 {opp_mbti} [{pokemon_data[opp_mbti]['name']}]이(가) 승부를 걸어왔다!"]
     
-    # ⚔️ 전투 액션 및 결과 판정
-    if st.session_state.my_hp > 0 and st.session_state.opp_hp > 0:
-        if st.button("⚔️ 수행평가의 분노로 공격하기! ⚔️", use_container_width=True):
-            # 1. 내가 먼저 공격 (기본 공격력의 80~120% 사이의 무작위 데미지)
-            my_dmg = int(my_poke['atk'] * random.uniform(0.8, 1.2))
-            # 가끔 발생하는 치명타(크리티컬) 로직
-            if random.random() < 0.2: # 20% 확률
-                my_dmg = int(my_dmg * 1.5)
-                st.session_state.battle_log.append(f"💥 [크리티컬!] {my_poke['name']}의 급소 찌르기! 상대에게 {my_dmg}의 엄청난 피해를 입혔다!")
+    # 배틀이 시작된 경우에만 배틀 화면 표시
+    if st.session_state.battle_active:
+        opp_poke = pokemon_data[st.session_state.opp_mbti]
+        
+        b_col1, b_col2, b_col3 = st.columns([2, 1, 2])
+        
+        # 내 포켓몬 배틀 UI
+        with b_col1:
+            st.markdown('<div class="battle-card">', unsafe_allow_html=True)
+            st.markdown(f"<h3>{st.session_state.my_mbti} [{my_poke['name']}]</h3>", unsafe_allow_html=True)
+            
+            # HP 게이지 오류 방지를 위해 0~1 사이로 제한
+            my_hp_ratio = max(0.0, min(1.0, st.session_state.my_hp / st.session_state.my_max_hp))
+            st.progress(my_hp_ratio, text=f"HP: {max(0, st.session_state.my_hp)} / {st.session_state.my_max_hp}")
+            
+            if st.session_state.my_hp <= 0:
+                st.markdown(f'<img src="{img_url}" class="poke-img battle-img" style="filter: grayscale(100%); transform: rotate(90deg);">', unsafe_allow_html=True)
             else:
-                st.session_state.battle_log.append(f"🔵 {my_poke['name']}의 공격! 상대에게 {my_dmg}의 피해를 입혔다.")
+                st.markdown(f'<img src="{img_url}" class="poke-img battle-img dance-bounce">', unsafe_allow_html=True)
+            st.markdown('</div>', unsafe_allow_html=True)
             
-            st.session_state.opp_hp -= my_dmg
+        with b_col2:
+            st.markdown('<div class="vs-text">VS</div>', unsafe_allow_html=True)
             
-            # 2. 상대가 살아있다면 반격
-            if st.session_state.opp_hp > 0:
-                opp_dmg = int(opp_poke['atk'] * random.uniform(0.8, 1.2))
-                if random.random() < 0.2:
-                    opp_dmg = int(opp_dmg * 1.5)
-                    st.session_state.battle_log.append(f"💥 [크리티컬!] {opp_poke['name']}의 뼈때리는 팩트폭격! 나에게 {opp_dmg}의 엄청난 피해!")
-                else:
-                    st.session_state.battle_log.append(f"🔴 {opp_poke['name']}의 반격! 나에게 {opp_dmg}의 피해를 입혔다.")
-                st.session_state.my_hp -= opp_dmg
+        # 상대 포켓몬 배틀 UI
+        with b_col3:
+            st.markdown('<div class="battle-card" style="border-color: #ff004c;">', unsafe_allow_html=True)
+            st.markdown(f"<h3>{st.session_state.opp_mbti} [{opp_poke['name']}]</h3>", unsafe_allow_html=True)
             
-            # 3. 누군가 쓰러졌는지 확인 기록
+            opp_img_url = f"https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/{opp_poke['img']}.png"
+            opp_hp_ratio = max(0.0, min(1.0, st.session_state.opp_hp / st.session_state.opp_max_hp))
+            st.progress(opp_hp_ratio, text=f"HP: {max(0, st.session_state.opp_hp)} / {st.session_state.opp_max_hp}")
+            
             if st.session_state.opp_hp <= 0:
-                st.session_state.battle_log.append(f"🏆 {opp_poke['name']}이(가) 쓰러졌다! 당신의 승리입니다!")
-                st.balloons()
-            elif st.session_state.my_hp <= 0:
-                st.session_state.battle_log.append(f"💀 {my_poke['name']}이(가) 쓰러졌다... 눈앞이 깜깜해졌다.")
-            
-            st.rerun() # 체력과 로그를 갱신하기 위해 화면 새로고침
+                st.markdown(f'<img src="{opp_img_url}" class="poke-img battle-img" style="filter: grayscale(100%); transform: rotate(-90deg);">', unsafe_allow_html=True)
+            else:
+                st.markdown(f'<img src="{opp_img_url}" class="poke-img battle-img dance-swing">', unsafe_allow_html=True)
+            st.markdown('</div>', unsafe_allow_html=True)
 
-    # 누군가 HP가 0이 되어 배틀이 끝난 경우
-    else:
-        st.error("배틀 종료!")
-        if st.button("🔄 새로운 배틀 시작하기", use_container_width=True):
-            # 게임 상태를 초기화하고 처음 선택 화면으로 돌아갑니다.
-            st.session_state.game_mode = 'select'
-            st.rerun()
+        # 전투 액션 버튼 및 로그 처리
+        st.write("<br>", unsafe_allow_html=True)
+        if st.session_state.my_hp > 0 and st.session_state.opp_hp > 0:
+            if st.button("⚡ 가라! 공격하기! ⚡", use_container_width=True):
+                # 공격 데미지 계산 (80% ~ 120% 랜덤)
+                my_dmg = int(my_poke['atk'] * random.uniform(0.8, 1.2))
+                st.session_state.opp_hp -= my_dmg
+                st.session_state.battle_log.append(f"🔵 {my_poke['name']}의 공격! 상대에게 {my_dmg}의 피해!")
+                
+                # 상대가 살아있으면 반격
+                if st.session_state.opp_hp > 0:
+                    opp_dmg = int(opp_poke['atk'] * random.uniform(0.8, 1.2))
+                    st.session_state.my_hp -= opp_dmg
+                    st.session_state.battle_log.append(f"🔴 {opp_poke['name']}의 반격! 나에게 {opp_dmg}의 피해!")
+                
+                # 승패 판정
+                if st.session_state.opp_hp <= 0:
+                    st.session_state.battle_log.append(f"🏆 {opp_poke['name']}이(가) 쓰러졌다! 당곡고 최고의 포켓몬 마스터 등극!")
+                    st.balloons()
+                elif st.session_state.my_hp <= 0:
+                    st.session_state.battle_log.append(f"💀 {my_poke['name']}이(가) 쓰러졌다... 눈앞이 깜깜해졌다.")
+                
+                st.rerun() # 업데이트 된 체력과 로그를 위해 화면 새로고침
+
+        else:
+            st.error("배틀이 종료되었습니다!")
+            
+        # 로그 출력 (가장 최근 로그가 위로 오도록 뒤집어서 출력)
+        log_html = "<div class='battle-log-box'>"
+        for log in reversed(st.session_state.battle_log):
+            log_html += f"<p>{log}</p>"
+        log_html += "</div>"
+        st.markdown(log_html, unsafe_allow_html=True)
